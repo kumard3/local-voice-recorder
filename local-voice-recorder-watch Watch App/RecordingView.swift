@@ -9,7 +9,6 @@ import SwiftUI
 
 struct RecordingView: View {
     @ObservedObject var audioManager: AudioManager
-    @State private var pulseAnimation = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -35,25 +34,11 @@ struct RecordingView: View {
                         .font(.system(size: 28, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
 
-                    // Animated waveform indicator (only when actively recording)
+                    // Real-time audio level waveform (only when actively recording)
                     if audioManager.isRecording && !audioManager.isPaused {
-                        HStack(spacing: 3) {
-                            ForEach(0..<5) { index in
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(Color.red)
-                                    .frame(width: 3, height: CGFloat.random(in: 8...20))
-                                    .animation(
-                                        Animation.easeInOut(duration: 0.5)
-                                            .repeatForever()
-                                            .delay(Double(index) * 0.1),
-                                        value: pulseAnimation
-                                    )
-                            }
-                        }
-                        .frame(height: 24)
-                        .onAppear {
-                            pulseAnimation.toggle()
-                        }
+                        AudioWaveView(audioLevel: audioManager.audioLevel)
+                            .frame(height: 40)
+                            .padding(.horizontal, 8)
                     } else if audioManager.isPaused {
                         // Paused indicator - static bars
                         HStack(spacing: 3) {
@@ -63,7 +48,7 @@ struct RecordingView: View {
                                     .frame(width: 5, height: 16)
                             }
                         }
-                        .frame(height: 24)
+                        .frame(height: 40)
                     }
                 }
             }
@@ -72,9 +57,9 @@ struct RecordingView: View {
 
             // Control buttons based on state
             if audioManager.isRecording || audioManager.isPaused {
-                // Recording or Paused state - show Pause/Resume and Finish buttons in HStack
-                HStack(spacing: 8) {
-                    // Pause/Resume button
+                // Recording or Paused state - show Pause/Resume and Finish buttons
+                HStack(spacing: 20) {
+                    // Pause/Resume button - circular design
                     Button(action: {
                         if audioManager.isPaused {
                             audioManager.resumeRecording()
@@ -82,53 +67,59 @@ struct RecordingView: View {
                             audioManager.pauseRecording()
                         }
                     }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: audioManager.isPaused ? "play.circle.fill" : "pause.circle.fill")
-                                .font(.title2)
-                            Text(audioManager.isPaused ? "Resume" : "Pause")
-                                .font(.system(size: 12, weight: .medium))
+                        ZStack {
+                            Circle()
+                                .fill(audioManager.isPaused ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
+                                .frame(width: 50, height: 50)
+
+                            Circle()
+                                .stroke(audioManager.isPaused ? Color.green : Color.orange, lineWidth: 2)
+                                .frame(width: 50, height: 50)
+
+                            Image(systemName: audioManager.isPaused ? "play.fill" : "pause.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(audioManager.isPaused ? .green : .orange)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 8)
-                        .background(audioManager.isPaused ? Color.green : Color.orange)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
                     }
                     .buttonStyle(PlainButtonStyle())
 
-                    // Finish button
+                    // Finish button - circular design with stop icon
                     Button(action: {
                         audioManager.finishRecording()
                     }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.title2)
-                            Text("Finish")
-                                .font(.system(size: 12, weight: .medium))
+                        ZStack {
+                            Circle()
+                                .fill(Color.red.opacity(0.2))
+                                .frame(width: 50, height: 50)
+
+                            Circle()
+                                .stroke(Color.red, lineWidth: 2)
+                                .frame(width: 50, height: 50)
+
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.red)
+                                .frame(width: 18, height: 18)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 8)
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
-                .padding(.horizontal, 4)
             } else {
                 // Idle state - show Record button
                 Button(action: {
                     audioManager.startRecording()
                 }) {
                     ZStack {
-                        // Outer circle
+                        // Outer glow circle
                         Circle()
-                            .stroke(Color.white, lineWidth: 3)
+                            .fill(Color.red.opacity(0.15))
+                            .frame(width: 80, height: 80)
+
+                        // Middle circle
+                        Circle()
+                            .stroke(Color.red.opacity(0.4), lineWidth: 2)
                             .frame(width: 70, height: 70)
 
-                        // Inner circle
+                        // Inner filled circle
                         Circle()
                             .fill(Color.red)
                             .frame(width: 60, height: 60)
@@ -160,6 +151,46 @@ struct RecordingView: View {
         let seconds = Int(timeInterval) % 60
         let milliseconds = Int((timeInterval.truncatingRemainder(dividingBy: 1)) * 10)
         return String(format: "%02d:%02d.%01d", minutes, seconds, milliseconds)
+    }
+}
+
+// MARK: - Audio Wave Visualization
+struct AudioWaveView: View {
+    let audioLevel: Float
+    private let barCount = 12 // Number of bars in the waveform
+    @State private var barHeights: [CGFloat] = Array(repeating: 0.1, count: 12)
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<barCount, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.red, .orange]),
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
+                    )
+                    .frame(width: 3)
+                    .frame(height: barHeights[index] * 40) // Max height of 40
+                    .animation(.easeInOut(duration: 0.1), value: barHeights[index])
+            }
+        }
+        .onChange(of: audioLevel) { newLevel in
+            updateWave(level: newLevel)
+        }
+    }
+
+    private func updateWave(level: Float) {
+        // Shift existing bars to the left (creating scrolling effect)
+        barHeights = Array(barHeights.dropFirst()) + [CGFloat(level)]
+
+        // Add some randomness for visual appeal but keep it based on actual level
+        // This prevents the wave from looking too uniform
+        for i in 0..<barHeights.count {
+            let variance = CGFloat.random(in: 0.8...1.2)
+            barHeights[i] = max(0.1, min(1.0, barHeights[i] * variance))
+        }
     }
 }
 

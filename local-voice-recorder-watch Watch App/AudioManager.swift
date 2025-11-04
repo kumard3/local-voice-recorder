@@ -19,6 +19,7 @@ class AudioManager: NSObject, ObservableObject {
     @Published var hasPermission = false
     @Published var errorMessage: String?
     @Published var currentlyPlayingURL: URL?
+    @Published var audioLevel: Float = 0.0 // Audio level for wave visualization (0.0 to 1.0)
 
     private var audioRecorder: AVAudioRecorder?
     var audioPlayer: AVAudioPlayer?
@@ -54,9 +55,17 @@ class AudioManager: NSObject, ObservableObject {
     
     private func setupAudioSession() {
         do {
-            try audioSession.setCategory(.playAndRecord, mode: .default)
+            // Configure for background recording support and extended recording
+            // Note: allowBluetooth only available on watchOS 11.0+, defaultToSpeaker not available on watchOS
+            if #available(watchOS 11.0, *) {
+                try audioSession.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth])
+            } else {
+                try audioSession.setCategory(.playAndRecord, mode: .default)
+            }
             try audioSession.setActive(true)
             requestMicrophonePermission()
+
+            print("━━━ AUDIO: Session configured for extended recording support")
         } catch {
             errorMessage = "Failed to setup audio session: \(error.localizedDescription)"
         }
@@ -81,6 +90,18 @@ class AudioManager: NSObject, ObservableObject {
 
         guard !isRecording else { return }
 
+        // Check available storage before starting
+        if let availableSpace = getAvailableSpace() {
+            // Require at least 100 MB free space for safety
+            // 1 hour M4A ~15 MB, 1 hour WAV ~300 MB
+            let requiredSpace: Int64 = 100 * 1024 * 1024 // 100 MB
+            if availableSpace < requiredSpace {
+                errorMessage = "Insufficient storage. Please free up space."
+                print("━━━ AUDIO: Low storage - Available: \(availableSpace / 1024 / 1024) MB")
+                return
+            }
+        }
+
         // Use appropriate format based on watchOS version
         let format = AudioFormat.current
         let fileName = "recording_\(Date().timeIntervalSince1970).\(format.fileExtension)"
@@ -88,19 +109,24 @@ class AudioManager: NSObject, ObservableObject {
 
         let settings = format.settings
 
-        print("Recording with format: \(format.fileExtension.uppercased())")
+        print("━━━ AUDIO: Starting recording with format: \(format.fileExtension.uppercased())")
         
         do {
             audioRecorder = try AVAudioRecorder(url: url, settings: settings)
             audioRecorder?.delegate = self
+            audioRecorder?.isMeteringEnabled = true // Enable audio level metering
             audioRecorder?.record()
-            
+
             isRecording = true
             currentRecordingTime = 0
             errorMessage = nil
-            
-            recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-                self?.updateRecordingTime()
+
+            // Timer updates at ~15 FPS for smooth wave animation without excessive CPU usage
+            recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.067, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    self?.updateRecordingTime()
+                    self?.updateAudioLevel()
+                }
             }
         } catch {
             errorMessage = "Failed to start recording: \(error.localizedDescription)"
@@ -114,6 +140,7 @@ class AudioManager: NSObject, ObservableObject {
         recordingTimer?.invalidate()
         recordingTimer = nil
         isPaused = true
+        audioLevel = 0.0 // Reset audio level when paused
     }
 
     func resumeRecording() {
@@ -122,9 +149,12 @@ class AudioManager: NSObject, ObservableObject {
         audioRecorder?.record()
         isPaused = false
 
-        // Restart the timer
-        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            self?.updateRecordingTime()
+        // Restart the timer at ~15 FPS
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.067, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateRecordingTime()
+                self?.updateAudioLevel()
+            }
         }
     }
 
@@ -136,6 +166,7 @@ class AudioManager: NSObject, ObservableObject {
         recordingTimer = nil
         isRecording = false
         isPaused = false
+        audioLevel = 0.0 // Reset audio level
     }
 
     func stopRecording() {
@@ -146,6 +177,29 @@ class AudioManager: NSObject, ObservableObject {
     private func updateRecordingTime() {
         guard let recorder = audioRecorder else { return }
         currentRecordingTime = recorder.currentTime
+    }
+
+    private func updateAudioLevel() {
+        guard let recorder = audioRecorder, recorder.isRecording else {
+            audioLevel = 0.0
+            return
+        }
+
+        // Update metering data
+        recorder.updateMeters()
+
+        // Get average power for channel 0 (mono recording)
+        // averagePower returns values from -160 dB (silence) to 0 dB (max)
+        let power = recorder.averagePower(forChannel: 0)
+
+        // Normalize to 0.0 - 1.0 range
+        // Use -50 dB as minimum (below this is essentially silence)
+        // Map -50 to 0 -> 0.0 to 1.0
+        let normalizedPower = max(0.0, min(1.0, (power + 50.0) / 50.0))
+
+        // Smooth the transition using exponential moving average
+        // This prevents jittery animations
+        audioLevel = audioLevel * 0.7 + normalizedPower * 0.3
     }
     
     func playRecording(_ recording: Recording) {
@@ -237,6 +291,19 @@ class AudioManager: NSObject, ObservableObject {
         Task {
             await syncManager?.syncPendingRecordings()
         }
+    }
+
+    // Helper function to check available storage space
+    private func getAvailableSpace() -> Int64? {
+        do {
+            let systemAttributes = try FileManager.default.attributesOfFileSystem(forPath: FileManager.default.documentsDirectory.path)
+            if let freeSpace = systemAttributes[.systemFreeSize] as? Int64 {
+                return freeSpace
+            }
+        } catch {
+            print("━━━ AUDIO: Error checking storage: \(error.localizedDescription)")
+        }
+        return nil
     }
 }
 
