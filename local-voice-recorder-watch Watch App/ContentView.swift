@@ -39,6 +39,14 @@ struct ContentView: View {
             .tabItem {
                 Label("Recordings", systemImage: "list.bullet")
             }
+            
+            // Settings Tab
+            NavigationView {
+                SettingsView(syncManager: syncManager, audioManager: audioManager)
+            }
+            .tabItem {
+                Label("Settings", systemImage: "gearshape.fill")
+            }
         }
         .tabViewStyle(.page)
         .onAppear {

@@ -88,12 +88,18 @@ struct RecordingsListView: View {
                     ScrollView {
                         LazyVStack(spacing: 8) {
                             ForEach(audioManager.recordings) { recording in
-                                RecordingRowView(
+                                NavigationLink(destination: RecordingDetailView(
                                     recording: recording,
                                     audioManager: audioManager,
                                     syncManager: syncManager
-                                )
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                )) {
+                                    RecordingRowView(
+                                        recording: recording,
+                                        audioManager: audioManager,
+                                        syncManager: syncManager
+                                    )
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
                                         withAnimation {
                                             audioManager.deleteRecording(recording)

@@ -24,6 +24,11 @@ class SyncManager: ObservableObject {
     @Published var syncMetadata: [String: SyncMetadata] = [:]
     @Published var isSyncing = false
     @Published var lastSyncError: String?
+    @Published var lastSyncTime: Date?
+    
+    private var autoDeleteAfterSync: Bool {
+        UserDefaults.standard.bool(forKey: "autoDeleteAfterSync")
+    }
 
     private let networkMonitor: NetworkMonitor
     private var cancellables = Set<AnyCancellable>()
@@ -43,7 +48,19 @@ class SyncManager: ObservableObject {
     init(networkMonitor: NetworkMonitor) {
         self.networkMonitor = networkMonitor
         loadSyncMetadata()
+        loadLastSyncTime()
         observeNetworkChanges()
+    }
+    
+    private func loadLastSyncTime() {
+        // Load last sync time from UserDefaults
+        if let lastSync = UserDefaults.standard.object(forKey: "lastSyncTime") as? Date {
+            lastSyncTime = lastSync
+        }
+    }
+    
+    private func saveLastSyncTime() {
+        UserDefaults.standard.set(lastSyncTime, forKey: "lastSyncTime")
     }
 
     // MARK: - Network Observation
@@ -241,10 +258,16 @@ class SyncManager: ObservableObject {
             print("Upload response status: \(httpResponse.statusCode)")
 
             if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
-                // Success - mark as synced and delete local file
+                // Success - mark as synced
                 print("✓ Successfully uploaded \(fileName)")
                 updateSyncStatus(fileName: fileName, status: .synced, error: nil)
-                deleteLocalFile(fileName: fileName)
+                lastSyncTime = Date()
+                saveLastSyncTime()
+                
+                // Only delete if auto-delete is enabled
+                if autoDeleteAfterSync {
+                    deleteLocalFile(fileName: fileName)
+                }
             } else {
                 let errorMsg = "Server error: \(httpResponse.statusCode)"
                 updateSyncStatus(fileName: fileName, status: .failed, error: errorMsg)
@@ -324,5 +347,34 @@ class SyncManager: ObservableObject {
         formatter.allowedUnits = [.useKB, .useMB]
         formatter.countStyle = .file
         return formatter.string(fromByteCount: bytes)
+    }
+    
+    // MARK: - Settings
+    
+    func setAutoDeleteAfterSync(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: "autoDeleteAfterSync")
+    }
+    
+    var lastSyncTimeString: String {
+        guard let lastSync = lastSyncTime else {
+            return "Never"
+        }
+        
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: lastSync)
+    }
+    
+    func getAvailableSpace() -> Int64? {
+        do {
+            let systemAttributes = try FileManager.default.attributesOfFileSystem(forPath: FileManager.default.documentsDirectory.path)
+            if let freeSpace = systemAttributes[.systemFreeSize] as? Int64 {
+                return freeSpace
+            }
+        } catch {
+            print("━━━ SYNC: Error checking storage: \(error.localizedDescription)")
+        }
+        return nil
     }
 }

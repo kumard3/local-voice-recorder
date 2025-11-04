@@ -294,7 +294,7 @@ class AudioManager: NSObject, ObservableObject {
     }
 
     // Helper function to check available storage space
-    private func getAvailableSpace() -> Int64? {
+    func getAvailableSpace() -> Int64? {
         do {
             let systemAttributes = try FileManager.default.attributesOfFileSystem(forPath: FileManager.default.documentsDirectory.path)
             if let freeSpace = systemAttributes[.systemFreeSize] as? Int64 {
