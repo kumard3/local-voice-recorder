@@ -121,13 +121,14 @@ class AudioManager: NSObject, ObservableObject {
             currentRecordingTime = 0
             errorMessage = nil
 
-            // Timer updates at ~15 FPS for smooth wave animation without excessive CPU usage
-            recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.067, repeats: true) { [weak self] _ in
-                Task { @MainActor in
-                    self?.updateRecordingTime()
-                    self?.updateAudioLevel()
-                }
+            // Timer updates at ~10 FPS for smooth wave animation without excessive CPU usage
+            // Reduced from 15 FPS (0.067s) to 10 FPS (0.1s) to prevent audio cycle overload
+            recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+                self?.updateRecordingTime()
+                self?.updateAudioLevel()
             }
+            // Add timer to main run loop to ensure proper execution
+            RunLoop.main.add(recordingTimer!, forMode: .common)
         } catch {
             errorMessage = "Failed to start recording: \(error.localizedDescription)"
         }
@@ -149,13 +150,12 @@ class AudioManager: NSObject, ObservableObject {
         audioRecorder?.record()
         isPaused = false
 
-        // Restart the timer at ~15 FPS
-        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.067, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.updateRecordingTime()
-                self?.updateAudioLevel()
-            }
+        // Restart the timer at ~10 FPS
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            self?.updateRecordingTime()
+            self?.updateAudioLevel()
         }
+        RunLoop.main.add(recordingTimer!, forMode: .common)
     }
 
     func finishRecording() {
