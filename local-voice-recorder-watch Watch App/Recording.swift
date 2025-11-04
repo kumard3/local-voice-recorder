@@ -8,10 +8,17 @@
 import Foundation
 
 struct Recording: Identifiable, Codable {
-    let id = UUID()
+    let id: UUID
     let fileName: String
     let date: Date
     let duration: TimeInterval
+
+    init(id: UUID = UUID(), fileName: String, date: Date, duration: TimeInterval) {
+        self.id = id
+        self.fileName = fileName
+        self.date = date
+        self.duration = duration
+    }
     
     var displayName: String {
         let formatter = DateFormatter()

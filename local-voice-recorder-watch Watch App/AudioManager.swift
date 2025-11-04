@@ -17,9 +17,10 @@ class AudioManager: NSObject, ObservableObject {
     @Published var currentRecordingTime: TimeInterval = 0
     @Published var hasPermission = false
     @Published var errorMessage: String?
+    @Published var currentlyPlayingURL: URL?
     
     private var audioRecorder: AVAudioRecorder?
-    private var audioPlayer: AVAudioPlayer?
+    var audioPlayer: AVAudioPlayer?
     private var recordingTimer: Timer?
     private let audioSession = AVAudioSession.sharedInstance()
     
@@ -100,16 +101,17 @@ class AudioManager: NSObject, ObservableObject {
     }
     
     func playRecording(_ recording: Recording) {
-        if isPlaying {
+        if isPlaying && currentlyPlayingURL == recording.fileURL {
             stopPlayback()
             return
         }
-        
+
         do {
             audioPlayer = try AVAudioPlayer(contentsOf: recording.fileURL)
             audioPlayer?.delegate = self
             audioPlayer?.play()
             isPlaying = true
+            currentlyPlayingURL = recording.fileURL
             errorMessage = nil
         } catch {
             errorMessage = "Failed to play recording: \(error.localizedDescription)"
@@ -120,6 +122,7 @@ class AudioManager: NSObject, ObservableObject {
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
+        currentlyPlayingURL = nil
     }
     
     func deleteRecording(_ recording: Recording) {
@@ -195,10 +198,12 @@ extension AudioManager: AVAudioRecorderDelegate {
 extension AudioManager: AVAudioPlayerDelegate {
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         isPlaying = false
+        currentlyPlayingURL = nil
     }
-    
+
     func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         errorMessage = "Playback error: \(error?.localizedDescription ?? "Unknown error")"
         isPlaying = false
+        currentlyPlayingURL = nil
     }
 }

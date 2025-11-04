@@ -8,14 +8,27 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var audioManager = AudioManager()
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            // Recording Tab
+            NavigationView {
+                RecordingView(audioManager: audioManager)
+            }
+            .tabItem {
+                Label("Record", systemImage: "mic.circle.fill")
+            }
+
+            // Recordings List Tab
+            NavigationView {
+                RecordingsListView(audioManager: audioManager)
+            }
+            .tabItem {
+                Label("Recordings", systemImage: "list.bullet")
+            }
         }
-        .padding()
+        .tabViewStyle(.page)
     }
 }
 
