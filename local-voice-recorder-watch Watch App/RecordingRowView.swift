@@ -48,6 +48,14 @@ struct RecordingRowView: View {
                     Text(recording.durationString)
                         .font(.caption2)
                         .foregroundColor(.gray)
+
+                    Text("•")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+
+                    Text(recording.fileFormat)
+                        .font(.caption2)
+                        .foregroundColor(.blue)
                 }
             }
 

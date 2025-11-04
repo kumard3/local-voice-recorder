@@ -50,6 +50,7 @@ struct RecordingsListView: View {
                                     .scaleEffect(0.7)
                             } else {
                                 Button(action: {
+                                    print("━━━ UI: Manual sync button tapped")
                                     Task {
                                         await syncManager.manualSync()
                                     }

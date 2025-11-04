@@ -19,35 +19,35 @@ The app has **3 distinct states** with different UI:
 
 ### 2️⃣ Recording State (Active)
 ```
-┌─────────────────┐
-│   Recording     │ ← Red text
-│    00:15.3      │ ← Live timer
-│   ▂▄▆▄▂        │ ← Animated waveform
-│                 │
-│  [⏸ Pause]     │ ← Orange button
-│  [✓ Finish]    │ ← Red button
-└─────────────────┘
+┌─────────────────────┐
+│   Recording         │ ← Red text
+│    00:15.3          │ ← Live timer
+│   ▂▄▆▄▂            │ ← Animated waveform
+│                     │
+│  [⏸ Pause] [✓ Done]│ ← Side-by-side compact buttons
+│   Orange     Red    │
+└─────────────────────┘
 ```
 **Actions:**
-- **Pause** → Pauses recording and timer
-- **Finish** → Saves recording and returns to idle
+- **Pause** (left, orange) → Pauses recording and timer
+- **Finish** (right, red) → Saves recording and returns to idle
 
 ---
 
 ### 3️⃣ Paused State
 ```
-┌─────────────────┐
-│     Paused      │ ← Orange text
-│    00:15.3      │ ← Timer frozen
-│      ║ ║       │ ← Static pause bars (orange)
-│                 │
-│  [▶ Resume]    │ ← Green button
-│  [✓ Finish]    │ ← Red button
-└─────────────────┘
+┌─────────────────────┐
+│     Paused          │ ← Orange text
+│    00:15.3          │ ← Timer frozen
+│      ║ ║           │ ← Static pause bars (orange)
+│                     │
+│ [▶ Resume] [✓ Done]│ ← Side-by-side compact buttons
+│   Green      Red    │
+└─────────────────────┘
 ```
 **Actions:**
-- **Resume** → Continues recording in same file
-- **Finish** → Saves recording with current duration
+- **Resume** (left, green) → Continues recording in same file
+- **Finish** (right, red) → Saves recording with current duration
 
 ---
 

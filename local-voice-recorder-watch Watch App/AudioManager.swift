@@ -36,6 +36,20 @@ class AudioManager: NSObject, ObservableObject {
 
     func setSyncManager(_ manager: SyncManager) {
         self.syncManager = manager
+
+        // Now that sync manager is set, mark existing recordings as unsynced
+        print("━━━ AUDIO: SyncManager connected, checking existing recordings")
+        for recording in recordings {
+            if syncManager?.syncMetadata[recording.fileName] == nil {
+                print("━━━ AUDIO: Marking existing recording as unsynced: \(recording.fileName)")
+                syncManager?.markAsNotSynced(recording.fileName)
+            }
+        }
+
+        // Trigger sync for any unsynced recordings
+        Task {
+            await syncManager?.syncPendingRecordings()
+        }
     }
     
     private func setupAudioSession() {
@@ -64,18 +78,17 @@ class AudioManager: NSObject, ObservableObject {
             errorMessage = "Microphone permission required"
             return
         }
-        
+
         guard !isRecording else { return }
-        
-        let fileName = "recording_\(Date().timeIntervalSince1970).m4a"
+
+        // Use appropriate format based on watchOS version
+        let format = AudioFormat.current
+        let fileName = "recording_\(Date().timeIntervalSince1970).\(format.fileExtension)"
         let url = FileManager.default.documentsDirectory.appendingPathComponent(fileName)
-        
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 44100.0,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-        ]
+
+        let settings = format.settings
+
+        print("Recording with format: \(format.fileExtension.uppercased())")
         
         do {
             audioRecorder = try AVAudioRecorder(url: url, settings: settings)
@@ -192,17 +205,8 @@ class AudioManager: NSObject, ObservableObject {
         // Filter out recordings where the actual file doesn't exist
         recordings = loadedRecordings.filter { FileManager.default.fileExists(atPath: $0.fileURL.path) }
 
-        // Mark all loaded recordings as not synced if they're not already tracked
-        for recording in recordings {
-            if syncManager?.getSyncStatus(for: recording.fileName) == .notSynced {
-                syncManager?.markAsNotSynced(recording.fileName)
-            }
-        }
-
-        // Trigger sync for any unsynced recordings
-        Task {
-            await syncManager?.syncPendingRecordings()
-        }
+        print("━━━ AUDIO: Loaded \(recordings.count) recordings from storage")
+        // Note: Sync will be triggered when setSyncManager() is called
     }
     
     private func saveRecordings() {

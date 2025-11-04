@@ -187,16 +187,21 @@ class SyncManager: ObservableObject {
             // Read file data
             let audioData = try Data(contentsOf: fileURL)
 
+            // Detect file format from filename
+            let format = AudioFormat.from(fileName: fileName)
+
             // Create multipart form data
             let boundary = UUID().uuidString
             var body = Data()
 
-            // Add audio file
+            // Add audio file with correct MIME type
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
             body.append("Content-Disposition: form-data; name=\"audio\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
-            body.append("Content-Type: audio/m4a\r\n\r\n".data(using: .utf8)!)
+            body.append("Content-Type: \(format.mimeType)\r\n\r\n".data(using: .utf8)!)
             body.append(audioData)
             body.append("\r\n".data(using: .utf8)!)
+
+            print("Uploading \(format.fileExtension.uppercased()) file: \(fileName)")
 
             // Add metadata
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
@@ -283,6 +288,7 @@ class SyncManager: ObservableObject {
     // MARK: - Manual Sync
 
     func manualSync() async {
+        print("━━━ SYNC: Manual sync triggered")
         await syncPendingRecordings()
     }
 

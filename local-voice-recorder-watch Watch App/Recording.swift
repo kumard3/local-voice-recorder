@@ -32,7 +32,12 @@ struct Recording: Identifiable, Codable {
         let seconds = Int(duration) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
-    
+
+    var fileFormat: String {
+        let format = AudioFormat.from(fileName: fileName)
+        return format.fileExtension.uppercased()
+    }
+
     var fileURL: URL {
         FileManager.default.documentsDirectory.appendingPathComponent(fileName)
     }
