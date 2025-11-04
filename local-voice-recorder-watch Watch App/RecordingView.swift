@@ -13,10 +13,10 @@ struct RecordingView: View {
     var body: some View {
         VStack(spacing: 0) {
             if audioManager.isRecording || audioManager.isPaused {
-                // Timer at top-left (like Apple Music track title)
+                // Timer at top
                 HStack {
                     Text(timeString(from: audioManager.currentRecordingTime))
-                        .font(.system(size: 20, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white)
                     Spacer()
                 }
@@ -129,18 +129,17 @@ struct RecordingView: View {
 
     private var navigationTitle: String {
         if audioManager.isRecording && !audioManager.isPaused {
-            return "● Recording"
+            return "🔴 Recording"
         } else if audioManager.isPaused {
-            return "● Paused"
+            return "⏸️ Paused"
         }
-        return "Record"
+        return "Voice Recorder"
     }
     
     private func timeString(from timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
-        let milliseconds = Int((timeInterval.truncatingRemainder(dividingBy: 1)) * 10)
-        return String(format: "%02d:%02d.%01d", minutes, seconds, milliseconds)
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 
