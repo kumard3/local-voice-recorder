@@ -12,6 +12,7 @@ import Combine
 @MainActor
 class AudioManager: NSObject, ObservableObject {
     @Published var isRecording = false
+    @Published var isPaused = false
     @Published var isPlaying = false
     @Published var recordings: [Recording] = []
     @Published var currentRecordingTime: TimeInterval = 0
@@ -86,13 +87,40 @@ class AudioManager: NSObject, ObservableObject {
         }
     }
     
-    func stopRecording() {
+    func pauseRecording() {
+        guard isRecording && !isPaused else { return }
+
+        audioRecorder?.pause()
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+        isPaused = true
+    }
+
+    func resumeRecording() {
+        guard isRecording && isPaused else { return }
+
+        audioRecorder?.record()
+        isPaused = false
+
+        // Restart the timer
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            self?.updateRecordingTime()
+        }
+    }
+
+    func finishRecording() {
         guard isRecording else { return }
-        
+
         audioRecorder?.stop()
         recordingTimer?.invalidate()
         recordingTimer = nil
         isRecording = false
+        isPaused = false
+    }
+
+    func stopRecording() {
+        // Keep this for backwards compatibility - now calls finishRecording
+        finishRecording()
     }
     
     private func updateRecordingTime() {

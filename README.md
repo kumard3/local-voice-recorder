@@ -5,9 +5,11 @@ A standalone voice recording app for Apple Watch built with SwiftUI and AVFounda
 ## Features
 
 - **Standalone Recording**: Record audio directly on Apple Watch without iPhone dependency
+- **Pause/Resume**: Pause recording and resume in the same audio file without creating a new recording
 - **Local Storage**: All recordings are stored locally on the watch in the app's documents directory
 - **Simple UI**: Watch-optimized interface with large tap targets
 - **Real-time Monitoring**: Live recording duration display with animated waveform indicator
+- **Three Recording States**: Idle (ready), Recording (active with waveform), Paused (orange indicator)
 - **Playback**: Play recordings directly from the watch
 - **Manage Recordings**: View all recordings with date, time, and duration; swipe to delete
 - **High-Quality Audio**: M4A format with AAC encoding (44.1kHz, mono)
@@ -19,17 +21,25 @@ A standalone voice recording app for Apple Watch built with SwiftUI and AVFounda
 #### 1. **AudioManager.swift**
 The central manager handling all audio operations:
 - **Recording**: Uses `AVAudioRecorder` with M4A/AAC format
+- **Pause/Resume**: `pauseRecording()`, `resumeRecording()`, and `finishRecording()` methods
 - **Playback**: Uses `AVAudioPlayer` for local playback
 - **Permissions**: Requests and manages microphone permissions
 - **Storage**: Manages recording metadata and file persistence
 - **State Management**: ObservableObject with published properties for SwiftUI
 
 Key Features:
+- Pause/resume recording in the same file using AVAudioRecorder's native pause/record methods
 - Real-time recording duration updates (0.1s intervals)
+- Timer automatically pauses/resumes with recording state
 - Automatic metadata tracking (filename, date, duration)
 - JSON-based recording list persistence
 - Error handling and user feedback
 - Audio session management for watch
+
+Published Properties:
+- `isRecording`: True when recording session is active
+- `isPaused`: True when recording is paused
+- `currentRecordingTime`: Total duration including paused segments
 
 #### 2. **Recording.swift**
 Data model representing a single recording:
@@ -47,12 +57,31 @@ Main app container with tab-based navigation:
 - Shared AudioManager instance across views
 
 #### 4. **RecordingView.swift**
-Recording interface:
-- Large circular record button (70pt diameter)
-- Visual states: Red circle (ready), Red square (recording)
+Recording interface with three distinct states:
+
+**Idle State (Ready to Record):**
+- Large circular red record button (70pt diameter)
+- "Ready to Record" status text
+- Single tap to start recording
+
+**Recording State (Active):**
+- "Recording" status in red text
 - Real-time timer with millisecond precision
-- Animated waveform indicator during recording
-- Permission status and error display
+- Animated red waveform indicator (5 bars)
+- **Pause button** (orange) - pauses recording and timer
+- **Finish button** (red) - stops and saves recording
+
+**Paused State:**
+- "Paused" status in orange text
+- Timer display frozen at pause time
+- Static orange pause indicator (2 bars)
+- **Resume button** (green) - continues recording in same file
+- **Finish button** (red) - stops and saves recording
+
+Additional Features:
+- Permission status checking
+- Error message display
+- Watch-optimized large buttons
 
 #### 5. **RecordingsListView.swift**
 List of saved recordings:
@@ -131,10 +160,27 @@ Alternatively, you can add it directly to the target's Info settings:
 ### Recording
 1. Launch the app on your Apple Watch
 2. You'll start on the "Record" tab
-3. Tap the large red circle to start recording
-4. The button becomes a red square and shows live duration
-5. Tap the square to stop recording
-6. Recording is automatically saved
+3. **Tap the large red circle** to start recording
+4. Screen shows "Recording" with live duration and animated waveform
+
+### During Recording
+- **Tap "Pause" button** (orange) to pause the recording
+  - Timer stops counting
+  - Status changes to "Paused" with orange indicator
+  - Audio continues in the same file (no new file created)
+- **Tap "Finish" button** (red) to stop and save the recording
+
+### While Paused
+- **Tap "Resume" button** (green) to continue recording
+  - Timer resumes from where it paused
+  - Recording continues in the same audio file
+  - Status changes back to "Recording"
+- **Tap "Finish" button** (red) to save the recording as-is
+
+### Saving
+- Recording is automatically saved when you tap "Finish"
+- Total duration includes all recording time (paused time is not counted)
+- File saved to watch's local documents directory
 
 ### Viewing Recordings
 1. Swipe left or use the Digital Crown to navigate to "Recordings" tab
