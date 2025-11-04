@@ -12,9 +12,9 @@ struct RecordingView: View {
     @State private var pulseAnimation = false
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             // Recording status and timer
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 if audioManager.isRecording && !audioManager.isPaused {
                     Text("Recording")
                         .font(.headline)
@@ -32,16 +32,16 @@ struct RecordingView: View {
                 // Timer display
                 if audioManager.isRecording || audioManager.isPaused {
                     Text(timeString(from: audioManager.currentRecordingTime))
-                        .font(.system(size: 32, weight: .bold, design: .monospaced))
+                        .font(.system(size: 28, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
 
                     // Animated waveform indicator (only when actively recording)
                     if audioManager.isRecording && !audioManager.isPaused {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 3) {
                             ForEach(0..<5) { index in
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(Color.red)
-                                    .frame(width: 4, height: CGFloat.random(in: 10...30))
+                                    .frame(width: 3, height: CGFloat.random(in: 8...20))
                                     .animation(
                                         Animation.easeInOut(duration: 0.5)
                                             .repeatForever()
@@ -50,20 +50,20 @@ struct RecordingView: View {
                                     )
                             }
                         }
-                        .frame(height: 30)
+                        .frame(height: 24)
                         .onAppear {
                             pulseAnimation.toggle()
                         }
                     } else if audioManager.isPaused {
                         // Paused indicator - static bars
-                        HStack(spacing: 4) {
+                        HStack(spacing: 3) {
                             ForEach(0..<2) { _ in
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(Color.orange)
-                                    .frame(width: 6, height: 20)
+                                    .frame(width: 5, height: 16)
                             }
                         }
-                        .frame(height: 30)
+                        .frame(height: 24)
                     }
                 }
             }
@@ -72,8 +72,8 @@ struct RecordingView: View {
 
             // Control buttons based on state
             if audioManager.isRecording || audioManager.isPaused {
-                // Recording or Paused state - show Pause/Resume and Finish buttons
-                VStack(spacing: 12) {
+                // Recording or Paused state - show Pause/Resume and Finish buttons in HStack
+                HStack(spacing: 8) {
                     // Pause/Resume button
                     Button(action: {
                         if audioManager.isPaused {
@@ -82,17 +82,18 @@ struct RecordingView: View {
                             audioManager.pauseRecording()
                         }
                     }) {
-                        HStack {
+                        VStack(spacing: 4) {
                             Image(systemName: audioManager.isPaused ? "play.circle.fill" : "pause.circle.fill")
                                 .font(.title2)
                             Text(audioManager.isPaused ? "Resume" : "Pause")
-                                .font(.headline)
+                                .font(.system(size: 12, weight: .medium))
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 8)
                         .background(audioManager.isPaused ? Color.green : Color.orange)
                         .foregroundColor(.white)
-                        .cornerRadius(25)
+                        .cornerRadius(8)
                     }
                     .buttonStyle(PlainButtonStyle())
 
@@ -100,21 +101,22 @@ struct RecordingView: View {
                     Button(action: {
                         audioManager.finishRecording()
                     }) {
-                        HStack {
+                        VStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.title2)
                             Text("Finish")
-                                .font(.headline)
+                                .font(.system(size: 12, weight: .medium))
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 8)
                         .background(Color.red)
                         .foregroundColor(.white)
-                        .cornerRadius(25)
+                        .cornerRadius(8)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 4)
             } else {
                 // Idle state - show Record button
                 Button(action: {
@@ -147,7 +149,8 @@ struct RecordingView: View {
                     .padding(.horizontal)
             }
         }
-        .padding()
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .navigationTitle("Record")
         .navigationBarTitleDisplayMode(.inline)
     }

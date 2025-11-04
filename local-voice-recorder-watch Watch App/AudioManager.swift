@@ -19,16 +19,23 @@ class AudioManager: NSObject, ObservableObject {
     @Published var hasPermission = false
     @Published var errorMessage: String?
     @Published var currentlyPlayingURL: URL?
-    
+
     private var audioRecorder: AVAudioRecorder?
     var audioPlayer: AVAudioPlayer?
     private var recordingTimer: Timer?
     private let audioSession = AVAudioSession.sharedInstance()
-    
+
+    // Sync manager integration
+    var syncManager: SyncManager?
+
     override init() {
         super.init()
         setupAudioSession()
         loadRecordings()
+    }
+
+    func setSyncManager(_ manager: SyncManager) {
+        self.syncManager = manager
     }
     
     private func setupAudioSession() {
@@ -155,26 +162,47 @@ class AudioManager: NSObject, ObservableObject {
     
     func deleteRecording(_ recording: Recording) {
         do {
+            // Delete the audio file
             try FileManager.default.removeItem(at: recording.fileURL)
+
+            // Remove from recordings list
             recordings.removeAll { $0.id == recording.id }
             saveRecordings()
+
+            // Clean up sync metadata
+            syncManager?.removeMetadata(for: recording.fileName)
+
+            print("Deleted recording: \(recording.fileName)")
         } catch {
             errorMessage = "Failed to delete recording: \(error.localizedDescription)"
+            print("Delete error: \(error.localizedDescription)")
         }
     }
     
     private func loadRecordings() {
         let documentsPath = FileManager.default.documentsDirectory
         let recordingsURL = documentsPath.appendingPathComponent("recordings.json")
-        
+
         guard let data = try? Data(contentsOf: recordingsURL),
               let loadedRecordings = try? JSONDecoder().decode([Recording].self, from: data) else {
             recordings = []
             return
         }
-        
+
         // Filter out recordings where the actual file doesn't exist
         recordings = loadedRecordings.filter { FileManager.default.fileExists(atPath: $0.fileURL.path) }
+
+        // Mark all loaded recordings as not synced if they're not already tracked
+        for recording in recordings {
+            if syncManager?.getSyncStatus(for: recording.fileName) == .notSynced {
+                syncManager?.markAsNotSynced(recording.fileName)
+            }
+        }
+
+        // Trigger sync for any unsynced recordings
+        Task {
+            await syncManager?.syncPendingRecordings()
+        }
     }
     
     private func saveRecordings() {
@@ -197,6 +225,14 @@ class AudioManager: NSObject, ObservableObject {
         )
         recordings.insert(recording, at: 0) // Most recent first
         saveRecordings()
+
+        // Mark as not synced in sync manager
+        syncManager?.markAsNotSynced(fileName)
+
+        // Trigger auto-sync if on WiFi
+        Task {
+            await syncManager?.syncPendingRecordings()
+        }
     }
 }
 

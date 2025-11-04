@@ -1,5 +1,47 @@
 # Changelog
 
+## Version 2.1 - Compact UI Layout (2025-11-04)
+
+### 🎨 UI Improvements
+
+#### Compact Button Layout
+- **Changed from VStack to HStack** for button placement
+- Buttons now appear **side-by-side** instead of stacked vertically
+- Prevents overflow on small watch screens
+- More space-efficient design
+
+**Button Layout Changes:**
+- Recording State: `[Pause] [Finish]` in horizontal row
+- Paused State: `[Resume] [Finish]` in horizontal row
+- Both buttons equal width using `.frame(maxWidth: .infinity)`
+- Reduced font size to 12pt for compact display
+- Smaller padding: 10pt vertical, 8pt horizontal
+- Corner radius reduced to 8pt (was 25pt)
+
+**Spacing Optimizations:**
+- Main VStack spacing: 16pt → 12pt
+- Status VStack spacing: 8pt → 6pt
+- Timer font size: 32pt → 28pt
+- Waveform height: 30pt → 24pt
+- Waveform bar width: 4pt → 3pt
+- Overall padding: `.padding()` → `.padding(.horizontal, 8)` + `.padding(.vertical, 4)`
+
+**Visual Design:**
+- Each button shows icon above text (VStack within each button)
+- Icons remain at `.title2` size for visibility
+- Text labels at 12pt with medium weight
+- 8pt spacing between buttons
+- 4pt spacing between icon and text within each button
+
+### Benefits
+✅ No overflow on 40mm-46mm Apple Watch displays
+✅ More compact, professional appearance
+✅ Better use of horizontal space
+✅ Easier thumb reach on watch screen
+✅ Consistent button sizing
+
+---
+
 ## Version 2.0 - Pause/Resume Feature (2025-11-04)
 
 ### 🎉 Major Features Added

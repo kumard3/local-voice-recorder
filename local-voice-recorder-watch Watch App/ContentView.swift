@@ -9,6 +9,14 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
+    @StateObject private var networkMonitor = NetworkMonitor()
+    @StateObject private var syncManager: SyncManager
+
+    init() {
+        let monitor = NetworkMonitor()
+        _networkMonitor = StateObject(wrappedValue: monitor)
+        _syncManager = StateObject(wrappedValue: SyncManager(networkMonitor: monitor))
+    }
 
     var body: some View {
         TabView {
@@ -22,13 +30,21 @@ struct ContentView: View {
 
             // Recordings List Tab
             NavigationView {
-                RecordingsListView(audioManager: audioManager)
+                RecordingsListView(
+                    audioManager: audioManager,
+                    syncManager: syncManager,
+                    networkMonitor: networkMonitor
+                )
             }
             .tabItem {
                 Label("Recordings", systemImage: "list.bullet")
             }
         }
         .tabViewStyle(.page)
+        .onAppear {
+            // Connect sync manager to audio manager
+            audioManager.setSyncManager(syncManager)
+        }
     }
 }
 
