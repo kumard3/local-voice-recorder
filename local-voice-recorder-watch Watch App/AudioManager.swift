@@ -8,6 +8,7 @@
 import Foundation
 import AVFoundation
 import Combine
+import WatchKit
 
 @MainActor
 class AudioManager: NSObject, ObservableObject {
@@ -25,6 +26,7 @@ class AudioManager: NSObject, ObservableObject {
     var audioPlayer: AVAudioPlayer?
     private var recordingTimer: Timer?
     private let audioSession = AVAudioSession.sharedInstance()
+    private var isProcessingPauseResume = false
 
     // Sync manager integration
     var syncManager: SyncManager?
@@ -33,6 +35,11 @@ class AudioManager: NSObject, ObservableObject {
         super.init()
         setupAudioSession()
         loadRecordings()
+        
+        // Pre-warm timer mechanism to reduce first-time lag
+        let _ = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: false) { _ in
+            // This helps initialize the timer system
+        }
     }
 
     func setSyncManager(_ manager: SyncManager) {
@@ -120,6 +127,9 @@ class AudioManager: NSObject, ObservableObject {
             isRecording = true
             currentRecordingTime = 0
             errorMessage = nil
+            
+            // Play start sound
+            playStartSound()
 
             // Timer updates at ~10 FPS for smooth wave animation without excessive CPU usage
             // Reduced from 15 FPS (0.067s) to 10 FPS (0.1s) to prevent audio cycle overload
@@ -135,27 +145,61 @@ class AudioManager: NSObject, ObservableObject {
     }
     
     func pauseRecording() {
-        guard isRecording && !isPaused else { return }
-
-        audioRecorder?.pause()
+        guard isRecording && !isPaused && !isProcessingPauseResume else { return }
+        
+        isProcessingPauseResume = true
+        
+        // Stop and clear the timer first to prevent updates
         recordingTimer?.invalidate()
         recordingTimer = nil
+        
+        // Set paused state for immediate UI update
         isPaused = true
-        audioLevel = 0.0 // Reset audio level when paused
+        audioLevel = 0.0 // Reset audio level
+        
+        // Pause the recorder - use async to avoid blocking
+        Task { @MainActor in
+            // Small delay to let any pending I/O operations complete
+            try? await Task.sleep(nanoseconds: 10_000_000) // 0.01 seconds
+            
+            // Pause the recorder
+            audioRecorder?.pause()
+            
+            isProcessingPauseResume = false
+        }
     }
 
     func resumeRecording() {
-        guard isRecording && isPaused else { return }
+        guard isRecording && isPaused && !isProcessingPauseResume else { return }
+        
+        isProcessingPauseResume = true
 
-        audioRecorder?.record()
+        // Update UI state immediately
         isPaused = false
 
-        // Restart the timer at ~10 FPS
-        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            self?.updateRecordingTime()
-            self?.updateAudioLevel()
+        // Resume recording with proper timing
+        Task { @MainActor in
+            // Small delay to let audio system prepare
+            try? await Task.sleep(nanoseconds: 10_000_000) // 0.01 seconds
+            
+            // Resume recording
+            audioRecorder?.record()
+            
+            // Restart the timer at ~15 FPS for smooth updates
+            recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.067, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    self?.updateRecordingTime()
+                    self?.updateAudioLevel()
+                }
+            }
+            
+            // Add timer to main run loop
+            if let timer = recordingTimer {
+                RunLoop.main.add(timer, forMode: .common)
+            }
+            
+            isProcessingPauseResume = false
         }
-        RunLoop.main.add(recordingTimer!, forMode: .common)
     }
 
     func finishRecording() {
@@ -304,6 +348,14 @@ class AudioManager: NSObject, ObservableObject {
             print("━━━ AUDIO: Error checking storage: \(error.localizedDescription)")
         }
         return nil
+    }
+    
+    // MARK: - Sound Effects
+    
+    private func playStartSound() {
+        // Play a short beep sound when recording starts
+        // Using WatchKit's haptic feedback instead of system sounds for better watchOS experience
+        WKInterfaceDevice.current().play(.start)
     }
 }
 
