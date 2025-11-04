@@ -21,74 +21,55 @@ struct RecordingRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Play/Pause button
+        HStack(spacing: 12) {
+            // Play button
             Button(action: {
                 audioManager.playRecording(recording)
             }) {
                 Image(systemName: isCurrentlyPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.title2)
+                    .font(.title3)
                     .foregroundColor(isCurrentlyPlaying ? .orange : .green)
             }
             .buttonStyle(PlainButtonStyle())
-            .frame(width: 28, height: 28)
 
-            // Recording info
-            VStack(alignment: .leading, spacing: 3) {
-                Text(recording.displayName)
+            // Date and time
+            VStack(alignment: .leading, spacing: 2) {
+                Text(dateString)
                     .font(.caption)
                     .foregroundColor(.white)
-                    .lineLimit(1)
-
-                HStack(spacing: 6) {
-                    Image(systemName: "clock")
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-
-                    Text(recording.durationString)
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-
-                    Text("•")
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-
-                    Text(recording.fileFormat)
-                        .font(.caption2)
-                        .foregroundColor(.blue)
-                }
+                
+                Text(timeString)
+                    .font(.caption2)
+                    .foregroundColor(.gray)
             }
 
             Spacer()
 
-            // Sync status icon
-            VStack(spacing: 2) {
-                Image(systemName: syncStatus.iconName)
+            // Simple sync status
+            if syncStatus == .synced {
+                Image(systemName: "checkmark.circle.fill")
                     .font(.caption)
-                    .foregroundColor(syncStatusColor)
-                    .opacity(syncStatus == .syncing ? 0.5 : 1.0)
-
-                if syncStatus == .syncing {
-                    ProgressView()
-                        .scaleEffect(0.5)
-                }
+                    .foregroundColor(.green)
+            } else {
+                Image(systemName: "circle")
+                    .font(.caption)
+                    .foregroundColor(.gray)
             }
-            .frame(width: 20)
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 6)
-        .background(Color.black.opacity(0.2))
-        .cornerRadius(8)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 8)
     }
-
-    private var syncStatusColor: Color {
-        switch syncStatus {
-        case .notSynced: return .gray
-        case .pending: return .orange
-        case .syncing: return .blue
-        case .synced: return .green
-        case .failed: return .red
-        }
+    
+    private var dateString: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        return formatter.string(from: recording.date)
+    }
+    
+    private var timeString: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: recording.date)
     }
 }
 

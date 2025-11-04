@@ -11,55 +11,37 @@ struct RecordingView: View {
     @ObservedObject var audioManager: AudioManager
 
     var body: some View {
-        VStack(spacing: 12) {
-            // Recording status and timer
-            VStack(spacing: 6) {
-                if audioManager.isRecording && !audioManager.isPaused {
-                    Text("Recording")
-                        .font(.headline)
-                        .foregroundColor(.red)
-                } else if audioManager.isPaused {
-                    Text("Paused")
-                        .font(.headline)
-                        .foregroundColor(.orange)
-                } else {
-                    Text("Ready to Record")
-                        .font(.headline)
-                        .foregroundColor(.gray)
-                }
-
-                // Timer display
-                if audioManager.isRecording || audioManager.isPaused {
+        VStack(spacing: 0) {
+            if audioManager.isRecording || audioManager.isPaused {
+                // Timer at top-left (like Apple Music track title)
+                HStack {
                     Text(timeString(from: audioManager.currentRecordingTime))
-                        .font(.system(size: 28, weight: .bold, design: .monospaced))
+                        .font(.system(size: 20, weight: .semibold, design: .monospaced))
                         .foregroundColor(.white)
-
-                    // Real-time audio level waveform (only when actively recording)
+                    Spacer()
+                }
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                .padding(.bottom, 20)
+                
+                Spacer()
+                
+                // Waveform centered (separated from title)
+                VStack {
                     if audioManager.isRecording && !audioManager.isPaused {
                         AudioWaveView(audioLevel: audioManager.audioLevel)
-                            .frame(height: 40)
-                            .padding(.horizontal, 8)
+                            .frame(height: 60)
                     } else if audioManager.isPaused {
-                        // Paused indicator - static bars
-                        HStack(spacing: 3) {
-                            ForEach(0..<2) { _ in
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(Color.orange)
-                                    .frame(width: 5, height: 16)
-                            }
-                        }
-                        .frame(height: 40)
+                        AudioWaveView(audioLevel: 0.0)
+                            .frame(height: 60)
+                            .opacity(0.5)
                     }
                 }
-            }
-
-            Spacer()
-
-            // Control buttons based on state
-            if audioManager.isRecording || audioManager.isPaused {
-                // Recording or Paused state - show Pause/Resume and Finish buttons
+                .padding(.bottom, 30)
+                
+                // Control buttons centered below waveform
                 HStack(spacing: 20) {
-                    // Pause/Resume button - circular design
+                    // Pause/Resume button
                     Button(action: {
                         if audioManager.isPaused {
                             audioManager.resumeRecording()
@@ -83,7 +65,7 @@ struct RecordingView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
 
-                    // Finish button - circular design with stop icon
+                    // Finish button
                     Button(action: {
                         audioManager.finishRecording()
                     }) {
@@ -103,23 +85,23 @@ struct RecordingView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
+                
+                Spacer()
             } else {
-                // Idle state - show Record button
+                // Idle state - centered record button
+                Spacer()
                 Button(action: {
                     audioManager.startRecording()
                 }) {
                     ZStack {
-                        // Outer glow circle
                         Circle()
                             .fill(Color.red.opacity(0.15))
                             .frame(width: 80, height: 80)
 
-                        // Middle circle
                         Circle()
                             .stroke(Color.red.opacity(0.4), lineWidth: 2)
                             .frame(width: 70, height: 70)
 
-                        // Inner filled circle
                         Circle()
                             .fill(Color.red)
                             .frame(width: 60, height: 60)
@@ -127,10 +109,9 @@ struct RecordingView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .disabled(!audioManager.hasPermission)
+                Spacer()
             }
-
-            Spacer()
-
+            
             // Error message
             if let error = audioManager.errorMessage {
                 Text(error)
@@ -138,14 +119,23 @@ struct RecordingView: View {
                     .foregroundColor(.red)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
+                    .padding(.bottom, 8)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .navigationTitle("Record")
+        .padding(.bottom, 4)
+        .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    private var navigationTitle: String {
+        if audioManager.isRecording && !audioManager.isPaused {
+            return "● Recording"
+        } else if audioManager.isPaused {
+            return "● Paused"
+        }
+        return "Record"
+    }
+    
     private func timeString(from timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
@@ -154,26 +144,22 @@ struct RecordingView: View {
     }
 }
 
-// MARK: - Audio Wave Visualization
+// MARK: - Audio Wave Visualization (Apple-style)
 struct AudioWaveView: View {
     let audioLevel: Float
-    private let barCount = 12 // Number of bars in the waveform
-    @State private var barHeights: [CGFloat] = Array(repeating: 0.1, count: 12)
+    private let barCount = 16 // Even number for symmetric waveform
+    @State private var barHeights: [CGFloat] = Array(repeating: 0.15, count: 16)
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(alignment: .center, spacing: 2) {
+            // Symmetric waveform - bars on both sides
             ForEach(0..<barCount, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [.red, .orange]),
-                            startPoint: .bottom,
-                            endPoint: .top
-                        )
-                    )
-                    .frame(width: 3)
-                    .frame(height: barHeights[index] * 40) // Max height of 40
-                    .animation(.easeInOut(duration: 0.1), value: barHeights[index])
+                let height = barHeights[index]
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(Color.white)
+                    .frame(width: 2)
+                    .frame(height: max(3, height * 60))
+                    .animation(.easeOut(duration: 0.08), value: height)
             }
         }
         .onChange(of: audioLevel) { newLevel in
@@ -182,14 +168,25 @@ struct AudioWaveView: View {
     }
 
     private func updateWave(level: Float) {
-        // Shift existing bars to the left (creating scrolling effect)
-        barHeights = Array(barHeights.dropFirst()) + [CGFloat(level)]
-
-        // Add some randomness for visual appeal but keep it based on actual level
-        // This prevents the wave from looking too uniform
-        for i in 0..<barHeights.count {
-            let variance = CGFloat.random(in: 0.8...1.2)
-            barHeights[i] = max(0.1, min(1.0, barHeights[i] * variance))
+        // Apple-style: symmetric waveform that responds to audio
+        let normalizedLevel = CGFloat(max(0.15, min(1.0, level)))
+        
+        // Create symmetric pattern - center bars taller, edges shorter
+        for i in 0..<barCount {
+            let centerIndex = CGFloat(barCount) / 2.0 - 0.5
+            let distanceFromCenter = abs(CGFloat(i) - centerIndex) / centerIndex
+            
+            // Responsiveness decreases from center to edges
+            let responsiveness = 1.0 - distanceFromCenter * 0.5
+            let targetHeight = normalizedLevel * responsiveness + 0.15 * (1.0 - responsiveness)
+            
+            // Smooth transition with slight variation
+            let variation = CGFloat.random(in: 0.85...1.15)
+            let finalTarget = min(1.0, targetHeight * variation)
+            
+            // Smooth interpolation
+            barHeights[i] = barHeights[i] * 0.75 + finalTarget * 0.25
+            barHeights[i] = max(0.15, min(1.0, barHeights[i]))
         }
     }
 }

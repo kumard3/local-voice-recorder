@@ -11,6 +11,8 @@ struct RecordingsListView: View {
     @ObservedObject var audioManager: AudioManager
     @ObservedObject var syncManager: SyncManager
     @ObservedObject var networkMonitor: NetworkMonitor
+    @State private var rotationAngle: Double = 0
+    @State private var rotationTimer: Timer?
 
     var body: some View {
         Group {
@@ -32,59 +34,62 @@ struct RecordingsListView: View {
                 .padding()
             } else {
                 VStack(spacing: 0) {
-                    // Sync status header
-                    VStack(spacing: 4) {
-                        HStack(spacing: 8) {
-                            Image(systemName: networkMonitor.isWiFi ? "wifi" : "wifi.slash")
-                                .font(.caption)
-                                .foregroundColor(networkMonitor.isWiFi ? .green : .gray)
-
-                            Text(networkMonitor.isWiFi ? "WiFi Connected" : "No WiFi")
+                    // Compact header aligned with navigation title
+                    HStack(spacing: 6) {
+                        // Sync button with animation
+                        Button(action: {
+                            print("━━━ UI: Manual sync button tapped")
+                            Task {
+                                await syncManager.manualSync()
+                            }
+                        }) {
+                            Image(systemName: "arrow.clockwise")
                                 .font(.caption2)
-                                .foregroundColor(.gray)
-
-                            Spacer()
-
-                            if syncManager.isSyncing {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                            } else {
-                                Button(action: {
-                                    print("━━━ UI: Manual sync button tapped")
-                                    Task {
-                                        await syncManager.manualSync()
+                                .foregroundColor(networkMonitor.isWiFi ? .blue : .gray)
+                                .rotationEffect(.degrees(rotationAngle))
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .disabled(!networkMonitor.isWiFi || syncManager.isSyncing)
+                        .onChange(of: syncManager.isSyncing) { isSyncing in
+                            if isSyncing {
+                                // Start rotation animation
+                                rotationTimer?.invalidate()
+                                rotationAngle = 0
+                                rotationTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                                    Task { @MainActor in
+                                        withAnimation(.linear(duration: 0.05)) {
+                                            rotationAngle += 18 // 18 degrees per frame (~360 degrees per second)
+                                            if rotationAngle >= 360 {
+                                                rotationAngle = 0
+                                            }
+                                        }
                                     }
-                                }) {
-                                    Image(systemName: "arrow.clockwise")
-                                        .font(.caption)
                                 }
-                                .buttonStyle(PlainButtonStyle())
-                                .disabled(!networkMonitor.isWiFi)
+                            } else {
+                                // Stop rotation animation
+                                rotationTimer?.invalidate()
+                                rotationTimer = nil
+                                withAnimation {
+                                    rotationAngle = 0
+                                }
                             }
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-
-                        // Storage info
-                        HStack(spacing: 4) {
-                            Text("\(syncManager.getPendingSyncCount()) pending")
-                                .font(.caption2)
-                                .foregroundColor(.orange)
-
-                            Text("•")
-                                .font(.caption2)
-                                .foregroundColor(.gray)
-
-                            Text(syncManager.formatBytes(syncManager.getTotalStorageUsed()))
-                                .font(.caption2)
-                                .foregroundColor(.gray)
+                        .onDisappear {
+                            rotationTimer?.invalidate()
+                            rotationTimer = nil
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 4)
+                        
+                        // WiFi indicator
+                        Image(systemName: networkMonitor.isWiFi ? "wifi" : "wifi.slash")
+                            .font(.caption2)
+                            .foregroundColor(networkMonitor.isWiFi ? .green : .gray)
+                        
+                        Spacer()
                     }
-                    .background(Color.black.opacity(0.2))
-
-                    // Recordings list
+                    .padding(.horizontal, 8)
+                    .padding(.top, 2)
+                    .padding(.bottom, 4)
+                    
                     ScrollView {
                         LazyVStack(spacing: 8) {
                             ForEach(audioManager.recordings) { recording in
